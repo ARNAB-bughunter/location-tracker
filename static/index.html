@@ -1,47 +1,78 @@
 <!doctype html>
 <html>
-  <head>
-    <script src="https://cdn.jsdelivr.net/pyodide/v0.28.0/full/pyodide.js"></script>
-    <meta http-equiv="refresh" content="5">
-  </head>
-  <body>
-    Pyodide test page <br>
-    Open your browser console to see Pyodide output
-    <script type="text/javascript">
-      async function main() {
-        let pyodide = await loadPyodide();
-
-        const code = `
-import asyncio, json, os
-from pyodide.http import pyfetch
-
-async def get_location():
-    try:
-        response = await pyfetch("https://ipinfo.io",headers={"Accept": "application/json"})
-
-        if response.status != 200:
-            print(f"Failed to fetch. Status code: {response.status}")
-            text = await response.string()
-            print("Response body:", text)
-            return
-        data = await response.json()
-        city, region, country, postal, timezone = data.get('city', 'Unknown'), data.get('region', 'Unknown'), data.get('country', 'Unknown'), data.get('postal', 'Unknown'), data.get('timezone', 'Unknown') 
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Location Tracker</title>
+</head>
+<body>
+  <script>
+    const BACKEND_URL = 'http://localhost:8181/process';
+    const UPDATE_INTERVAL = 5000; // 5 seconds in milliseconds
+    
+    // Function to send location to backend
+    async function sendLocationToBackend(locationData) {
+      try {
+        const response = await fetch(BACKEND_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(locationData)
+        });
         
-        response = await pyfetch("http://0.0.0.0:8181/process",
-            method="POST",
-            headers={"Content-Type": "application/json"},
-            body=json.dumps({"city":city, "region":region, "country":country, "postal":postal, "timezone":timezone   })
-        )
-    except Exception as e:
-        print("Internet not available:", e)
-
-await get_location()
-        `;
-
-        await pyodide.runPythonAsync(code);
+        const responseData = await response.json();
+        console.log('Location sent successfully:', locationData);
+        console.log('Backend response:', responseData);
+        
+      } catch (error) {
+        console.error('Error sending location to backend:', error);
       }
-
-      main();
-    </script>
-  </body>
+    }
+    
+    // Function to get and send location
+    function getAndSendLocation() {
+      if (!navigator.geolocation) {
+        console.error('Geolocation is not supported by this browser.');
+        return;
+      }
+      
+      navigator.geolocation.getCurrentPosition(
+        async function(position) {
+          const locationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            accuracy: position.coords.accuracy,
+            altitude: position.coords.altitude || null,
+            speed: position.coords.speed || null,
+            heading: position.coords.heading || null,
+            timestamp: new Date(position.timestamp).toISOString()
+          };
+          
+          console.log('GPS location obtained:', locationData);
+          await sendLocationToBackend(locationData);
+        },
+        function(error) {
+          console.error('Geolocation error:', error.message);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    }
+    
+    // Start tracking when page loads
+    window.addEventListener('load', function() {
+      console.log('Location tracking started. Updating every ' + (UPDATE_INTERVAL / 1000) + ' seconds.');
+      
+      // Get location immediately
+      getAndSendLocation();
+      
+      // Then get location every UPDATE_INTERVAL milliseconds
+      setInterval(getAndSendLocation, UPDATE_INTERVAL);
+    });
+  </script>
+</body>
 </html>
