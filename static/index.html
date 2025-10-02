@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+  <head>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.28.0/full/pyodide.js"></script>
+    <meta http-equiv="refresh" content="5">
+  </head>
+  <body>
+    Pyodide test page <br>
+    Open your browser console to see Pyodide output
+    <script type="text/javascript">
+      async function main() {
+        let pyodide = await loadPyodide();
+
+        const code = `
+import asyncio, json, os
+from pyodide.http import pyfetch
+
+async def get_location():
+    try:
+        response = await pyfetch("https://ipinfo.io",headers={"Accept": "application/json"})
+
+        if response.status != 200:
+            print(f"Failed to fetch. Status code: {response.status}")
+            text = await response.string()
+            print("Response body:", text)
+            return
+        data = await response.json()
+        city, region, country, postal, timezone = data.get('city', 'Unknown'), data.get('region', 'Unknown'), data.get('country', 'Unknown'), data.get('postal', 'Unknown'), data.get('timezone', 'Unknown') 
+        
+        response = await pyfetch("http://0.0.0.0:8181/process",
+            method="POST",
+            headers={"Content-Type": "application/json"},
+            body=json.dumps({"city":city, "region":region, "country":country, "postal":postal, "timezone":timezone   })
+        )
+    except Exception as e:
+        print("Internet not available:", e)
+
+await get_location()
+        `;
+
+        await pyodide.runPythonAsync(code);
+      }
+
+      main();
+    </script>
+  </body>
+</html>
