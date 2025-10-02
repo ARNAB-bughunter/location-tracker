@@ -1,15 +1,30 @@
 <!doctype html>
 <html>
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Location Tracker</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Location Tracker</title>
 </head>
+
 <body>
+  
   <script>
     const BACKEND_URL = 'http://localhost:8181/process';
     const UPDATE_INTERVAL = 5000; // 5 seconds in milliseconds
-    
+
+    // Function to generate UUID
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    // Generate UUID once for this session/connection
+    const sessionUUID = generateUUID();
+
     // Function to send location to backend
     async function sendLocationToBackend(locationData) {
       try {
@@ -20,25 +35,25 @@
           },
           body: JSON.stringify(locationData)
         });
-        
+
         const responseData = await response.json();
         console.log('Location sent successfully:', locationData);
         console.log('Backend response:', responseData);
-        
+
       } catch (error) {
         console.error('Error sending location to backend:', error);
       }
     }
-    
+
     // Function to get and send location
     function getAndSendLocation() {
       if (!navigator.geolocation) {
         console.error('Geolocation is not supported by this browser.');
         return;
       }
-      
+
       navigator.geolocation.getCurrentPosition(
-        async function(position) {
+        async function (position) {
           const locationData = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
@@ -46,13 +61,14 @@
             altitude: position.coords.altitude || null,
             speed: position.coords.speed || null,
             heading: position.coords.heading || null,
-            timestamp: new Date(position.timestamp).toISOString()
+            timestamp: new Date(position.timestamp).toISOString(),
+            uuid: sessionUUID // use same UUID each time
           };
-          
+
           console.log('GPS location obtained:', locationData);
           await sendLocationToBackend(locationData);
         },
-        function(error) {
+        function (error) {
           console.error('Geolocation error:', error.message);
         },
         {
@@ -62,17 +78,19 @@
         }
       );
     }
-    
+
     // Start tracking when page loads
-    window.addEventListener('load', function() {
+    window.addEventListener('load', function () {
       console.log('Location tracking started. Updating every ' + (UPDATE_INTERVAL / 1000) + ' seconds.');
-      
+
       // Get location immediately
       getAndSendLocation();
-      
+
       // Then get location every UPDATE_INTERVAL milliseconds
       setInterval(getAndSendLocation, UPDATE_INTERVAL);
     });
   </script>
+
 </body>
+
 </html>
